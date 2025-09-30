@@ -311,9 +311,12 @@ fn responseOK(rsp: []const u8) bool {
 }
 
 fn scToPkcsError(err: sc.LONG) PkcsError!void {
+
+    const SCARD_E_NO_SMARTCARD: i32 = @bitCast(sc.SCARD_E_NO_SMARTCARD);
+
     return switch (err) {
         sc.SCARD_S_SUCCESS => {},
-        sc.SCARD_E_NO_SMARTCARD => PkcsError.TokenNoPresent,
+        SCARD_E_NO_SMARTCARD => PkcsError.TokenNoPresent,
         else => PkcsError.DeviceError,
     };
 }

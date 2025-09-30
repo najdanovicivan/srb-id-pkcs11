@@ -39,6 +39,11 @@ pub const ReaderState = struct {
             &active_protocol,
         );
 
+        const SCARD_E_NO_SMARTCARD : i32 = @bitCast(sc.SCARD_E_NO_SMARTCARD);
+        const SCARD_W_UNPOWERED_CARD : i32 = @bitCast(sc.SCARD_W_UNPOWERED_CARD);
+        const SCARD_W_UNRESPONSIVE_CARD : i32 = @bitCast(sc.SCARD_W_UNRESPONSIVE_CARD);
+        const SCARD_E_READER_UNAVAILABLE : i32 = @bitCast(sc.SCARD_E_READER_UNAVAILABLE);
+
         switch (r) {
             sc.SCARD_S_SUCCESS => {
                 var card_state: sc.DWORD = 0;
@@ -57,10 +62,10 @@ pub const ReaderState = struct {
 
                 self.recognized = atr.validATR(card_atr[0..card_atr_len]);
             },
-            sc.SCARD_E_NO_SMARTCARD => {
+            SCARD_E_NO_SMARTCARD => {
                 self.card_present = false;
             },
-            sc.SCARD_W_UNPOWERED_CARD, sc.SCARD_W_UNRESPONSIVE_CARD, sc.SCARD_E_READER_UNAVAILABLE => return PkcsError.DeviceError,
+            SCARD_W_UNPOWERED_CARD, SCARD_W_UNRESPONSIVE_CARD, SCARD_E_READER_UNAVAILABLE => return PkcsError.DeviceError,
             else => return PkcsError.GeneralError,
         }
     }
