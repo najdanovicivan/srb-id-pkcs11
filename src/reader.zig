@@ -1,4 +1,6 @@
 const std = @import("std");
+extern "c" fn calloc(num: usize, size: usize) *anyopaque;
+extern "c" fn free(ptr: ?*anyopaque) void;
 
 const atr = @import("atr.zig");
 const pkcs = @import("pkcs.zig").pkcs;
@@ -48,14 +50,23 @@ pub const ReaderState = struct {
             sc.SCARD_S_SUCCESS => {
                 var card_state: sc.DWORD = 0;
                 var card_protocol: sc.DWORD = 0;
-                var card_atr: [*c]u8 = null;
-                var card_atr_len: sc.DWORD = sc.SCARD_AUTOALLOCATE;
-                var reader_name: [*c]u8 = null;
-                var reader_name_len: sc.DWORD = sc.SCARD_AUTOALLOCATE;
 
-                _ = sc.SCardStatus(card_handle, @ptrCast(&reader_name), &reader_name_len, &card_state, &card_protocol, @ptrCast(&card_atr), &card_atr_len);
-                defer _ = sc.SCardFreeMemory(state.smart_card_context_handle, reader_name);
-                defer _ = sc.SCardFreeMemory(state.smart_card_context_handle, card_atr);
+                var card_atr_len: sc.DWORD = 0;
+                var reader_name_len: sc.DWORD = 0;
+
+                _ = sc.SCardStatus(card_handle, null, &reader_name_len, &card_state, &card_protocol, null, &card_atr_len);
+
+                const reader_name_c =  calloc(reader_name_len, @sizeOf(c_char));
+                const card_atr_c =  calloc(card_atr_len, @sizeOf(c_char));
+
+                _ = sc.SCardStatus(card_handle, @ptrCast(reader_name_c), &reader_name_len, &card_state, &card_protocol, @ptrCast(card_atr_c), &card_atr_len);
+
+
+                var card_atr: [*c]u8 = @ptrCast(reader_name_c);
+                //var reader_name: [*c]u8 = @ptrCast(reader_name_c);
+
+                defer free(reader_name_c);
+                defer free(card_atr_c);
 
                 self.card_present = true;
                 _ = sc.SCardDisconnect(card_handle, sc.SCARD_LEAVE_CARD);
@@ -110,24 +121,41 @@ pub const ReaderState = struct {
 };
 
 pub fn refreshStatuses(allocator: std.mem.Allocator, smart_card_context_handle: sc.SCARDHANDLE) PkcsError!void {
-    var readers_multi_string: [*c]u8 = null;
-    var readers: sc.DWORD = sc.SCARD_AUTOALLOCATE;
 
-    const rv1 = sc.SCardListReaders(
+    var readers: sc.DWORD = 0;
+
+    const rv0 = sc.SCardListReaders(
         smart_card_context_handle,
         null,
-        @ptrCast(&readers_multi_string),
+        null,
         &readers,
     );
 
-    if (rv1 != sc.SCARD_S_SUCCESS and rv1 != sc.SCARD_E_NO_READERS_AVAILABLE) {
-        if (rv1 == sc.SCARD_E_NO_MEMORY)
+    if (rv0 != sc.SCARD_S_SUCCESS and rv0 != sc.SCARD_E_NO_READERS_AVAILABLE) {
+        if(rv0 == sc.SCARD_E_NO_MEMORY)
             return PkcsError.HostMemory;
 
         return PkcsError.GeneralError;
     }
 
-    defer _ = sc.SCardFreeMemory(smart_card_context_handle, readers_multi_string);
+    const readers_multi_string_c = calloc(readers, @sizeOf(c_char));
+    const rv1 = sc.SCardListReaders(
+        smart_card_context_handle,
+        null,
+        @ptrCast(readers_multi_string_c),
+        &readers,
+    );
+
+    const readers_multi_string: [*c]u8 = @ptrCast(readers_multi_string_c);
+
+    if (rv1 != sc.SCARD_S_SUCCESS and rv1 != sc.SCARD_E_NO_READERS_AVAILABLE) {
+        if(rv1 == sc.SCARD_E_NO_MEMORY)
+            return PkcsError.HostMemory;
+
+        return PkcsError.GeneralError;
+    }
+
+    defer free(readers_multi_string_c);
 
     resetStates();
 
