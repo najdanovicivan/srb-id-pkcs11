@@ -5,8 +5,9 @@ pub const sc = switch (builtin.target.os.tag) {
         @cInclude("winscard.h");
     }),
     .macos => @cImport({
-        @cInclude("winscard.h");
-        @cInclude("wintypes.h");
+        @cInclude("PCSC/pcsclite.h");
+        @cInclude("PCSC/winscard.h");
+        @cInclude("PCSC/wintypes.h");
     }),
     .linux => @cImport({
         @cInclude("pcsclite.h");
