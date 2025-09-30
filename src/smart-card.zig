@@ -48,7 +48,7 @@ pub const Card = struct {
             self.card_handle,
             @ptrCast(&self.active_card_protocol),
             data_unit.ptr,
-            data_unit.len,
+            @intCast(data_unit.len),
             null,
             &buf,
             &buf_len,
